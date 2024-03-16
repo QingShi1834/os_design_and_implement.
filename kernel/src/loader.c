@@ -7,26 +7,46 @@
 #include <elf.h>
 
 uint32_t load_elf(PD *pgdir, const char *name) {
-  Elf32_Ehdr elf;
-  Elf32_Phdr ph;
-  inode_t *inode = iopen(name, TYPE_NONE);
-  if (!inode) return -1;
-  iread(inode, 0, &elf, sizeof(elf));
-  if (*(uint32_t*)(&elf) != 0x464c457f) { // check ELF magic number
-    iclose(inode);
-    return -1;
-  }
-  for (int i = 0; i < elf.e_phnum; ++i) {
-    iread(inode, elf.e_phoff + i * sizeof(ph), &ph, sizeof(ph));
-    if (ph.p_type == PT_LOAD) {
-      // Lab1-2: Load segment to physical memory
-      // Lab1-4: Load segment to virtual memory
-      TODO();
+    Elf32_Ehdr elf;
+    Elf32_Phdr ph;
+    inode_t *inode = iopen(name, TYPE_NONE);
+    if (!inode) return -1;
+    iread(inode, 0, &elf, sizeof(elf));
+    if (*(uint32_t*)(&elf) != 0x464c457f) { // check ELF magic number
+        iclose(inode);
+        return -1;
     }
-  }
-  // TODO: Lab1-4 alloc stack memory in pgdir
-  iclose(inode);
-  return elf.e_entry;
+
+    // Save the current page directory and switch to pgdir
+    PD *curr_pgdir = (PD *)get_cr3();
+    set_cr3(pgdir);
+
+    for (int i = 0; i < elf.e_phnum; ++i) {
+        iread(inode, elf.e_phoff + i * sizeof(ph), &ph, sizeof(ph));
+        if (ph.p_type == PT_LOAD) {
+            uint32_t dest = ph.p_vaddr;
+            uint32_t filesz = ph.p_filesz;
+            uint32_t memsz = ph.p_memsz;
+
+            // Map the segment to virtual memory
+            vm_map(pgdir, dest, memsz, (ph.p_flags & PF_W) ? PTE_U | PTE_P | PTE_W : PTE_U | PTE_P);
+
+            // Load the segment content from the file to memory
+            iread(inode, ph.p_offset, (void *)dest, ph.p_filesz);
+            if(ph.p_memsz>ph.p_filesz){
+                memset((void *)(dest + filesz), 0, memsz - filesz);
+            }
+        }
+    }
+
+    // Map the stack memory in pgdir
+    vm_map(pgdir, USR_MEM - PGSIZE, PGSIZE, PTE_U | PTE_P | PTE_W);
+
+    // Restore the original page directory
+    set_cr3(curr_pgdir);
+
+    iclose(inode);
+    return elf.e_entry;
 }
 
 #define MAX_ARGS_NUM 31

@@ -31,7 +31,7 @@ void init_user_and_go() {
   // Lab1-8: argv
   // Lab2-1: proc
   // Lab3-2: add cwd
-  uint32_t eip = load_elf(NULL, "loaduser");
+  uint32_t eip = load_elf(NULL, "loaduser"); //将名字为name的用户程序加载到内存，返回其入口地址（或-1如果不存在这个用户程序），第一个参数现在没有意义
   assert(eip != -1);
   ((void(*)())eip)();
 }

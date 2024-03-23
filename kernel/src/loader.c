@@ -20,8 +20,18 @@ uint32_t load_elf(PD *pgdir, const char *name) {
     iread(inode, elf.e_phoff + i * sizeof(ph), &ph, sizeof(ph));
     if (ph.p_type == PT_LOAD) {
       // Lab1-2: Load segment to physical memory
+        // 将ELF文件中起始于p_offset，大小为p_filesz字节的数据拷贝到内存中起始于p_vaddr的位置，并将内存中剩余的p_memsz - p_filesz字节的内容清零。
+//        uint32_t src = (uint32_t)&elf + ph.p_offset;
+        uint32_t dest = ph.p_vaddr;
+        uint32_t filesz = ph.p_filesz;
+        uint32_t memsz = ph.p_memsz;
+
+        // 从文件中读取段内容到内存
+        iread(inode, ph.p_offset, (void *)dest, ph.p_filesz);
+        // 使用 memset 清零剩余空间
+        memset((void *)(dest + filesz), 0, memsz - filesz);
       // Lab1-4: Load segment to virtual memory
-      TODO();
+//      TODO();
     }
   }
   // TODO: Lab1-4 alloc stack memory in pgdir

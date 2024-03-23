@@ -14,6 +14,11 @@ _start:
 
   # TODO: Lab1-2, set the lowest bit of cr0
 
+  movl %cr0, %eax      # 将CR0寄存器的值移入EAX寄存器
+  orl $0x1, %eax       # 设置EAX寄存器的最低位为1
+  movl %eax, %cr0      # 将修改后的EAX寄存器的值移回CR0寄存器
+
+
   ljmp $0x08, $start32 # reload code segment selector and ljmp to start32
 
 .code32
@@ -41,8 +46,14 @@ gdt: # 8 bytes for each table entry, at least 1 entry
   .byte 0, 0, 0, 0
 
   # TODO: Lab1-2, code segment entry
+  .word 0xffff, 0x0000    # 段限长
+  .byte 0x00, 0x9a        # 基地址和标志位
+  .byte 0xcf, 0x00        # 标志位
 
   # TODO: Lab1-2, data segment entry
+  .word 0xffff, 0x0000    # 段限长
+  .byte 0x00, 0x92        # 基地址和标志位
+  .byte 0xcf, 0x00        # 标志位
 
 gdt_desc: # 6 bytes in total
   .word (gdt_desc - gdt - 1) # sizeof(gdt) - 1

@@ -36,7 +36,7 @@ void init_user_and_go() {
 //  ((void(*)())eip)();
     PD *pgdir = vm_alloc();
     Context ctx;
-    assert(load_user(pgdir, &ctx, "systest", NULL) == 0);
+    assert(load_user(pgdir, &ctx, "iotest", NULL) == 0);
     set_cr3(pgdir);
     set_tss(KSEL(SEG_KDATA), (uint32_t)kalloc() + PGSIZE);
     irq_iret(&ctx);

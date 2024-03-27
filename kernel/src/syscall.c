@@ -14,19 +14,21 @@ extern void *syscall_handle[NR_SYS];
 
 void do_syscall(Context *ctx) {
   // TODO: Lab1-5 call specific syscall handle and set ctx register
-  int sysnum = ctx->eax;
-  uint32_t arg1 = ctx->ebx;
-  uint32_t arg2 = ctx->ecx;
-  uint32_t arg3 = ctx->edx;
-  uint32_t arg4 = ctx->esi;
-  uint32_t arg5 = ctx->edi;
-  int res;
-  if (sysnum < 0 || sysnum >= NR_SYS) {
-    res = -1;
-  } else {
-    res = ((syshandle_t)(syscall_handle[sysnum]))(arg1, arg2, arg3, arg4, arg5);
-  }
-  ctx->eax = res;
+    int sysnum = ctx->eax;
+    uint32_t arg1 = ctx->ebx;
+    uint32_t arg2 = ctx->ecx;
+    uint32_t arg3 = ctx->edx;
+    uint32_t arg4 = ctx->esi;
+    uint32_t arg5 = ctx->edi;
+    int res;
+    if (sysnum < 0 || sysnum >= NR_SYS)
+    {
+        res = -1;
+    }else
+    {
+        res = ((syshandle_t)(syscall_handle[sysnum]))(arg1, arg2, arg3, arg4, arg5);
+    }
+    ctx->eax = res;
 }
 
 int sys_write(int fd, const void *buf, size_t count) {

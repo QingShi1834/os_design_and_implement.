@@ -110,10 +110,10 @@ void irq_handle(Context *ctx) {
   // TODO: Lab1-5 handle pagefault and syscall
   // TODO: Lab1-7 handle serial and timer
   // TODO: Lab2-1 handle yield
-      case 14://EX_PF
+      case EX_PF://EX_PF
         vm_pgfault(get_cr2(),ctx->errcode);
         break;
-      case 128://EX_SYSCALL
+      case EX_SYSCALL://EX_SYSCALL
           do_syscall(ctx);
           break;
 

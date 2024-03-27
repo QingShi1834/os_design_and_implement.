@@ -168,36 +168,30 @@ PTE *vm_walkpte(PD *pgdir, size_t va, int prot) {
 //  TODO();
     uint32_t pd_index = ADDR2DIR(va);
     uint32_t pt_index = ADDR2TBL(va);
+    PDE* pde = &pgdir->pde[pd_index];
 
-    PDE* pde = &(pgdir->pde[pd_index]);
-    // Check if PDE is present
-    if (!(pde->val & PTE_P)) {
-        // PDE is not present
-
-        if (prot&0x1) {
-            // Allocate PT and fill PDE
-            PT* pt = (PT*)kalloc();
-            if (!pt) {
-                return NULL; // Allocation failed
-            }
-
-            // Clear all PTEs in the newly allocated PT
-            for (int i = 0; i < 1024; i++) {
-                pt->pte[i].val = 0;
-            }
-            pde->val =MAKE_PDE(pt,prot);
-//            *pde = (uint32_t)pt | prot | PTE_P; // Update PDE with new PT address and permissions
-        } else {
-            return NULL; // PDE is empty and !(prot&1), return NULL
-        }
+// 如果页表项不存在且需要创建
+    if (pde->present == 0 && (prot & 0x1)) {
+        // 分配页表
+        PT* pt = kalloc();
+        // 设置页目录项
+        pde->val = MAKE_PDE(pt, prot);
+        // 返回页表项指针
+        return &pt->pte[pt_index];
     }
-
-    // Get the PT address from PDE
-    PT *pt = PDE2PT(*pde);
-    PTE* pte = &(pt->pte[pt_index]); // 找到对应的页表项
-
-
-    return pte;
+// 如果不需要创建页表项且保护位为 0，则返回空指针
+    else if (!(prot & 0x1)) {
+        return NULL;
+    }
+// 否则更新页目录项和页表项
+    else {
+        // 更新页目录项中的保护位
+        pde->val |= prot;
+        // 获取对应页表
+        PT* pt = PDE2PT(*pde);
+        // 返回页表项指针
+        return &pt->pte[pt_index];
+    }
 }
 
 void *vm_walk(PD *pgdir, size_t va, int prot) {

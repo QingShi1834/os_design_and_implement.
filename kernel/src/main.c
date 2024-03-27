@@ -36,8 +36,8 @@ void init_user_and_go() {
 //  ((void(*)())eip)();
     PD *pgdir = vm_alloc();
     Context ctx;
-    char *argv[] = {"echo", "hello", "world", NULL};
-    assert(load_user(pgdir, &ctx, "echo", argv) == 0);
+    char *argv[] = {"sh1", NULL};
+    assert(load_user(pgdir, &ctx, "sh1", argv) == 0);
     set_cr3(pgdir);
     set_tss(KSEL(SEG_KDATA), (uint32_t)kalloc() + PGSIZE);
     irq_iret(&ctx);

@@ -204,7 +204,10 @@ void *vm_walk(PD *pgdir, size_t va, int prot) {
   // Lab1-4: translate va to pa
   // if prot&1 and prot voilation ((pte->val & prot & 7) != prot), call vm_pgfault
   // if va is not mapped and !(prot&1), return NULL
-  TODO();
+//  TODO();
+    PTE* pte=vm_walkpte(pgdir,va,prot);
+    if(pte==NULL || pte->present==0)return NULL;
+    else return PTE2PG(*pte);
 }
 
 void vm_map(PD *pgdir, size_t va, size_t len, int prot) {

@@ -116,6 +116,12 @@ void irq_handle(Context *ctx) {
       case 128://EX_SYSCALL
           do_syscall(ctx);
           break;
+      case 36://T_IRQ0 + IRQ_COM1
+          serial_handle();
+          break;
+      case 32://T_IRQ0 + IRQ_TIMER
+          timer_handle();
+          break;
 
   default: assert(ctx->irq >= T_IRQ0 && ctx->irq < T_IRQ0 + NR_INTR);
   }

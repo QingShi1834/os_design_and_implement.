@@ -56,11 +56,30 @@ int sys_brk(void *addr) {
 }
 
 void sys_sleep(int ticks) {
-  TODO(); // Lab1-7
+//  TODO(); // Lab1-7
+    uint32_t originTick = get_tick();
+    uint32_t end = originTick + ticks;
+    while (get_tick() < end){
+        sti();
+        hlt();
+        cli();
+    }
 }
 
 int sys_exec(const char *path, char *const argv[]) {
-  TODO(); // Lab1-8, Lab2-1
+//  TODO(); // Lab1-8, Lab2-1
+    PD *pgdir = vm_alloc();
+    Context ctx;
+    if (load_user(pgdir, &ctx, path, argv) != 0)
+    {
+        vm_teardown(pgdir);
+        return -1;
+    }
+    PD *curr = vm_curr();
+    set_cr3(pgdir);
+    proc_curr()->pgdir = pgdir;
+    vm_teardown(curr);
+    irq_iret(&ctx);
 }
 
 int sys_getpid() {

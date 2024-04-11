@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="LeetcodeEditor">
+    <option name="projectConfig">
+      <map>
+        <entry key="D:/Codes/LeetCode/leetcode/editor/cn/1-two-sum.cpp">
+          <value>
+            <LeetcodeEditor>
+              <option name="contentPath" value="D:/Codes/LeetCode/leetcode/editor/cn/doc/content/1-two-sum.md" />
+              <option name="frontendQuestionId" value="leetcode.cn1" />
+              <option name="host" value="leetcode.cn" />
+              <option name="path" value="D:/Codes/LeetCode/leetcode/editor/cn/1-two-sum.cpp" />
+              <option name="titleSlug" value="two-sum" />
+            </LeetcodeEditor>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

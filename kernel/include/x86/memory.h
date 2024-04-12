@@ -24,6 +24,10 @@
 #define PTE_W          0x002   // Writeable
 #define PTE_U          0x004   // User
 
+#define PDE_P          0x001   // Present
+#define PDE_W          0x002   // Writeable
+#define PDE_U          0x004   // User
+
 // GDT selectors
 #define KSEL(seg)      (((seg) << 3) | DPL_KERN)
 #define USEL(seg)      (((seg) << 3) | DPL_USER)

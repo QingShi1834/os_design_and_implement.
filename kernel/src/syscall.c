@@ -41,15 +41,16 @@ int sys_read(int fd, void *buf, size_t count) {
 
 int sys_brk(void *addr) {
   // TODO: Lab1-5
-  static size_t brk = 0; // use brk of proc instead of this in Lab2-1
+//  static size_t brk = 0; // use brk of proc instead of this in Lab2-1
+    proc_t *pcb = proc_curr();
   size_t new_brk = PAGE_UP(addr);
-  if (brk == 0) {
-    brk = new_brk;
-  } else if (new_brk > brk) {
+  if (pcb->brk == 0) {
+      pcb->brk = new_brk;
+  } else if (new_brk > pcb->brk) {
 //    TODO();
-      vm_map(vm_curr(), brk, new_brk-brk, 7);
-      brk = new_brk;
-  } else if (new_brk < brk) {
+      vm_map(vm_curr(), pcb->brk, new_brk - pcb->brk, 7);
+      pcb->brk = new_brk;
+  } else if (new_brk < pcb->brk) {
     // can just do nothing
   }
   return 0;
@@ -60,9 +61,10 @@ void sys_sleep(int ticks) {
     uint32_t originTick = get_tick();
     uint32_t end = originTick + ticks;
     while (get_tick() < end){
-        sti();
-        hlt();
-        cli();
+//        sti();
+//        hlt();
+//        cli();
+        proc_yield();
     }
 }
 
@@ -83,7 +85,8 @@ int sys_exec(const char *path, char *const argv[]) {
 }
 
 int sys_getpid() {
-  TODO(); // Lab2-1
+//  TODO(); // Lab2-1
+    return proc_curr()->pid;
 }
 
 void sys_yield() {
@@ -91,15 +94,41 @@ void sys_yield() {
 }
 
 int sys_fork() {
-  TODO(); // Lab2-2
+//  TODO(); // Lab2-2
+    proc_t *pcb = proc_alloc();
+    if (pcb == NULL){
+        return -1;
+    }
+    proc_copycurr(pcb);
+    proc_addready(pcb);
+    return pcb->pid;
 }
 
 void sys_exit(int status) {
-  TODO(); // Lab2-3
+//  TODO(); // Lab2-3
+    proc_makezombie(proc_curr(), status);
+    INT(0x81);
+    assert(0);
 }
 
 int sys_wait(int *status) {
-  TODO(); // Lab2-3, Lab2-4
+//  TODO(); // Lab2-3, Lab2-4
+    proc_t *curr_proc = proc_curr();
+    if (curr_proc->child_num == 0){
+        return -1;
+    }
+
+    proc_t *child_proc;
+    while ( ( child_proc=proc_findzombie(curr_proc) ) == NULL){
+        proc_yield();
+    }
+    if (status != NULL){
+        *status = child_proc->exit_code;
+    }
+    int pid = child_proc->pid;
+    proc_free(child_proc);
+    --curr_proc->child_num;
+    return pid;
 }
 
 int sys_sem_open(int value) {

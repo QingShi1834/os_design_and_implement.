@@ -41,6 +41,7 @@ void irq45();
 void irq46();
 void irq47();
 void irq128();
+void irq129();
 void irqall();
 
 #define PORT_PIC_MASTER 0x20
@@ -97,6 +98,7 @@ void init_cte() {
   idt[47] = GATE32(STS_IG, KSEL(SEG_KCODE), irq47, DPL_KERN);
   idt[128] = GATE32(STS_IG, KSEL(SEG_KCODE), irq128, DPL_USER);
   // TODO: Lab2-1 set idt[129]
+    idt[129] = GATE32(STS_IG, KSEL(SEG_KCODE), irq129, DPL_KERN);
   set_idt(idt, sizeof(idt));
   init_intr();
 }
@@ -121,6 +123,9 @@ void irq_handle(Context *ctx) {
           break;
       case 32://T_IRQ0 + IRQ_TIMER
           timer_handle();
+          break;
+      case 0x81:
+          schedule(ctx);
           break;
 
   default: assert(ctx->irq >= T_IRQ0 && ctx->irq < T_IRQ0 + NR_INTR);

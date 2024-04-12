@@ -13,17 +13,51 @@ void init_proc() {
   // Lab2-1, set status and pgdir
   // Lab2-4, init zombie_sem
   // Lab3-2, set cwd
+//    pcb[0].status = pcb[0].status.RUNNING;
+    pcb[0].status = RUNNING;
+    pcb[0].pgdir = vm_curr();
+
 }
 
 proc_t *proc_alloc() {
   // Lab2-1: find a unused pcb from pcb[1..PROC_NUM-1], return NULL if no such one
-  TODO();
+//  TODO();
   // init ALL attributes of the pcb
+    proc_t *ptr = NULL;
+    for (int i = 1; i < PROC_NUM; ++i)
+    {
+        if (pcb[i].status == UNUSED)
+        {
+            ptr = &pcb[i];
+            ptr->pid = next_pid;
+            ++next_pid;
+            ptr->status = UNINIT;
+            ptr->pgdir = vm_alloc();
+            ptr->brk = 0;
+            ptr->kstack = kalloc();
+            ptr->ctx = &(ptr->kstack->ctx);
+            ptr->parent = NULL;
+            ptr->child_num = 0;
+            break;
+        }
+    }
+    if (ptr == NULL){
+        return NULL;
+    }
+
+    return ptr;
 }
 
 void proc_free(proc_t *proc) {
   // Lab2-1: free proc's pgdir and kstack and mark it UNUSED
-  TODO();
+
+//  TODO();
+    if (proc == curr){
+        return;
+    }
+    vm_teardown(proc->pgdir);
+    kfree(proc->kstack);
+    proc->status = UNUSED;
 }
 
 proc_t *proc_curr() {
@@ -54,7 +88,14 @@ void proc_copycurr(proc_t *proc) {
   // Lab2-5: dup opened usems
   // Lab3-1: dup opened files
   // Lab3-2: dup cwd
-  TODO();
+//  TODO();
+    proc_t *curr_proc = proc_curr();
+    vm_copycurr(proc->pgdir);
+    proc->brk = curr_proc->brk;
+    proc->kstack->ctx = curr_proc->kstack->ctx;
+    proc->kstack->ctx.eax = 0;
+    proc->parent = curr_proc;
+    ++curr_proc->child_num;
 }
 
 void proc_makezombie(proc_t *proc, int exitcode) {
@@ -62,12 +103,26 @@ void proc_makezombie(proc_t *proc, int exitcode) {
   // Lab2-5: close opened usem
   // Lab3-1: close opened files
   // Lab3-2: close cwd
-  TODO();
+//  TODO();
+    proc->status = ZOMBIE;
+    proc->exit_code = exitcode;
+    for (int i = 0; i < PROC_NUM; ++i){
+        if (pcb[i].parent == proc){
+            pcb[i].parent = NULL;
+        }
+    }
+
 }
 
 proc_t *proc_findzombie(proc_t *proc) {
   // Lab2-3: find a ZOMBIE whose parent is proc, return NULL if none
-  TODO();
+//  TODO();
+    for (int i = 0; i < PROC_NUM; ++i){
+        if (pcb[i].parent == proc && pcb[i].status == ZOMBIE){
+            return &pcb[i];
+        }
+    }
+    return NULL;
 }
 
 void proc_block() {
@@ -98,5 +153,20 @@ file_t *proc_getfile(proc_t *proc, int fd) {
 
 void schedule(Context *ctx) {
   // Lab2-1: save ctx to curr->ctx, then find a READY proc and run it
-  TODO();
+//  TODO();
+    proc_t *ptr = proc_curr();
+    ptr->ctx = ctx;
+    if (ptr == &pcb[PROC_NUM - 1]){
+        ptr = &pcb[0];
+    }else{
+        ++ptr;
+    }
+    while (ptr->status != READY)
+    {
+        if (ptr == &pcb[PROC_NUM - 1])
+            ptr = &pcb[0];
+        else
+            ++ptr;
+    }
+    proc_run(ptr);
 }

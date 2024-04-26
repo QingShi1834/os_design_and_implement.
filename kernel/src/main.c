@@ -53,8 +53,8 @@ void init_user_and_go() {
 
     proc_t *proc = proc_alloc();
     assert(proc);
-    char *argv[] = {"childtest", NULL};
-    assert(load_user(proc->pgdir, proc->ctx, "childtest", argv) == 0);
+    char *argv[] = {"sh", NULL};
+    assert(load_user(proc->pgdir, proc->ctx, "sh", argv) == 0);
     proc_addready(proc);
 
 //    proc = proc_alloc();

@@ -42,6 +42,9 @@ proc_t *proc_alloc() {
             ptr->parent = NULL;
             ptr->child_num = 0;
             sem_init(&ptr->zombie_sem, 0);
+            for (int i = 0; i < MAX_USEM; ++i){
+                ptr->usems[i] = NULL;
+            }
             break;
         }
     }
@@ -100,6 +103,14 @@ void proc_copycurr(proc_t *proc) {
     proc->kstack->ctx.eax = 0;
     proc->parent = curr_proc;
     ++curr_proc->child_num;
+
+    for (int i = 0; i < MAX_USEM; ++i)
+    {
+        if (curr_proc->usems[i] != NULL)
+        {
+            proc->usems[i] = usem_dup(curr_proc->usems[i]);
+        }
+    }
 }
 
 void proc_makezombie(proc_t *proc, int exitcode) {
@@ -117,6 +128,14 @@ void proc_makezombie(proc_t *proc, int exitcode) {
     }
     if (proc->parent != NULL){
         sem_v(&proc->parent->zombie_sem);
+    }
+
+    for (int i = 0; i < MAX_USEM; ++i)
+    {
+        if (proc->usems[i] != NULL)
+        {
+            usem_close(proc->usems[i]);
+        }
     }
 
 }
@@ -140,12 +159,25 @@ void proc_block() {
 
 int proc_allocusem(proc_t *proc) {
   // Lab2-5: find a free slot in proc->usems, return its index, or -1 if none
-  TODO();
+//  TODO();
+    int index = -1;
+    for (int i = 0; i < MAX_USEM; ++i)
+    {
+        if (proc->usems[i] == NULL)
+        {
+            index = i;
+            break;
+        }
+    }
+    return index;
 }
 
 usem_t *proc_getusem(proc_t *proc, int sem_id) {
   // Lab2-5: return proc->usems[sem_id], or NULL if sem_id out of bound
-  TODO();
+//  TODO();
+    if (sem_id >= MAX_USEM)
+        return NULL;
+    return proc->usems[sem_id];
 }
 
 int proc_allocfile(proc_t *proc) {

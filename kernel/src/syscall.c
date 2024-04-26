@@ -132,19 +132,45 @@ int sys_wait(int *status) {
 }
 
 int sys_sem_open(int value) {
-  TODO(); // Lab2-5
+//  TODO(); // Lab2-5
+    proc_t *curr_proc = proc_curr();
+    int index = proc_allocusem(curr_proc);
+    if (index == -1)
+        return -1;
+    usem_t *p = usem_alloc(value);
+    if (p == NULL)
+        return -1;
+    curr_proc->usems[index] = p;
+    return index;
 }
 
 int sys_sem_p(int sem_id) {
-  TODO(); // Lab2-5
+//  TODO(); // Lab2-5
+    usem_t *p = proc_getusem(proc_curr(), sem_id);
+    if (p == NULL)
+        return -1;
+    sem_p(&p->sem);
+    return 0;
 }
 
 int sys_sem_v(int sem_id) {
-  TODO(); // Lab2-5
+//  TODO(); // Lab2-5
+    usem_t *p = proc_getusem(proc_curr(), sem_id);
+    if (p == NULL)
+        return -1;
+    sem_v(&p->sem);
+    return 0;
 }
 
 int sys_sem_close(int sem_id) {
-  TODO(); // Lab2-5
+//  TODO(); // Lab2-5
+    proc_t *curr_proc = proc_curr();
+    usem_t *p = proc_getusem(curr_proc, sem_id);
+    if (p == NULL)
+        return -1;
+    usem_close(p);
+    curr_proc->usems[sem_id] = NULL;
+    return 0;
 }
 
 int sys_open(const char *path, int mode) {

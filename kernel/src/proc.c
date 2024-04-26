@@ -14,8 +14,11 @@ void init_proc() {
   // Lab2-4, init zombie_sem
   // Lab3-2, set cwd
 //    pcb[0].status = pcb[0].status.RUNNING;
+    // TODO 可能会有bug kproc->kstack = (void *)(KER_MEM - PGSIZE);
     pcb[0].status = RUNNING;
     pcb[0].pgdir = vm_curr();
+
+    sem_init(&pcb[0].zombie_sem, 0);
 
 }
 
@@ -38,6 +41,7 @@ proc_t *proc_alloc() {
             ptr->ctx = &(ptr->kstack->ctx);
             ptr->parent = NULL;
             ptr->child_num = 0;
+            sem_init(&ptr->zombie_sem, 0);
             break;
         }
     }
@@ -110,6 +114,9 @@ void proc_makezombie(proc_t *proc, int exitcode) {
         if (pcb[i].parent == proc){
             pcb[i].parent = NULL;
         }
+    }
+    if (proc->parent != NULL){
+        sem_v(&proc->parent->zombie_sem);
     }
 
 }

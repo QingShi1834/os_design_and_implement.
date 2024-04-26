@@ -117,11 +117,11 @@ int sys_wait(int *status) {
     if (curr_proc->child_num == 0){
         return -1;
     }
-
-    proc_t *child_proc;
-    while ( ( child_proc=proc_findzombie(curr_proc) ) == NULL){
-        proc_yield();
-    }
+    sem_p(&curr_proc->zombie_sem);
+    proc_t *child_proc = proc_findzombie(curr_proc);
+//    while ( ( child_proc=proc_findzombie(curr_proc) ) == NULL){
+//        proc_yield();
+//    }
     if (status != NULL){
         *status = child_proc->exit_code;
     }

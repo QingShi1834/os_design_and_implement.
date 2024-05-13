@@ -45,6 +45,8 @@ proc_t *proc_alloc() {
             for (int i = 0; i < MAX_USEM; ++i){
                 ptr->usems[i] = NULL;
             }
+            for (int j = 0; j < MAX_UFILE; j++)
+                pcb[i].files[j] = NULL;
             break;
         }
     }
@@ -111,6 +113,12 @@ void proc_copycurr(proc_t *proc) {
             proc->usems[i] = usem_dup(curr_proc->usems[i]);
         }
     }
+    for (int i = 0; i < MAX_UFILE; i++)
+    {
+        proc->files[i] = curr_proc->files[i];
+        if (curr_proc->files[i] != NULL)
+            fdup(curr_proc->files[i]);
+    }
 }
 
 void proc_makezombie(proc_t *proc, int exitcode) {
@@ -137,6 +145,9 @@ void proc_makezombie(proc_t *proc, int exitcode) {
             usem_close(proc->usems[i]);
         }
     }
+    for (int i = 0; i < MAX_UFILE; i++)
+        if (proc->files[i] != NULL)
+            fclose(proc->files[i]);
 
 }
 
@@ -182,12 +193,19 @@ usem_t *proc_getusem(proc_t *proc, int sem_id) {
 
 int proc_allocfile(proc_t *proc) {
   // Lab3-1: find a free slot in proc->files, return its index, or -1 if none
-  TODO();
+//  TODO();
+    for (int i = 0; i < MAX_UFILE; i++)
+        if (proc->files[i] == NULL)
+            return i;
+    return -1;
 }
 
 file_t *proc_getfile(proc_t *proc, int fd) {
   // Lab3-1: return proc->files[fd], or NULL if fd out of bound
-  TODO();
+//  TODO();
+    if (fd >= MAX_UFILE)
+        return NULL;
+    return proc->files[fd];
 }
 
 void schedule(Context *ctx) {

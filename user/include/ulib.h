@@ -25,6 +25,7 @@ uint32_t lseek(int fd, uint32_t off, int whence);
 int fstat(int fd, struct stat *st);
 int chdir(const char *path);
 int unlink(const char *path);
+int mkfifo(const char *path, int mode);
 
 #define P sem_p
 #define V sem_v

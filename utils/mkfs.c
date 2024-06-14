@@ -41,8 +41,9 @@ void panic(const char *msg) {
 #define IPERBLK   (BLK_SIZE / sizeof(dinode_t)) // inode num per blk
 #define INODE_NUM ((DATA_START - INODE_START) * IPERBLK)
 
-#define NDIRECT   12
+#define NDIRECT   11  //直接索引
 #define NINDIRECT (BLK_SIZE / sizeof(uint32_t))
+#define MAXFILE (NDIRECT + NINDIRECT + NINDIRECT * NINDIRECT)
 
 #define TYPE_NONE 0
 #define TYPE_FILE 1
@@ -71,7 +72,7 @@ typedef struct {
   uint32_t type;   // file type
   uint32_t device; // if it is a dev, its dev_id
   uint32_t size;   // file size
-  uint32_t addrs[NDIRECT + 1]; // data block addresses, 12 direct and 1 indirect
+  uint32_t addrs[NDIRECT + 1 + 1]; // data block addresses, 12 direct and 1 indirect
 } dinode_t;
 
 // directory is a file containing a sequence of dirent structures
@@ -166,20 +167,54 @@ blk_t *iwalk(dinode_t *file, uint32_t blk_no) {
   // return the pointer to the file's data's blk_no th block, if no, alloc it
   if (blk_no < NDIRECT) {
     // direct address
-    TODO();
+//    TODO();
+      if (file->addrs[blk_no] == 0)
+          file->addrs[blk_no] = balloc();
+      return bget(file->addrs[blk_no]);
   }
   blk_no -= NDIRECT;
   if (blk_no < NINDIRECT) {
     // indirect address
-    TODO();
+      if (file->addrs[NDIRECT] == 0)
+          file->addrs[NDIRECT] = balloc();
+      if (bget(file->addrs[NDIRECT])->u32buf[blk_no] == 0)
+          bget(file->addrs[NDIRECT])->u32buf[blk_no] = balloc();
+      return bget(bget(file->addrs[NDIRECT])->u32buf[blk_no]);
   }
+  blk_no -= NINDIRECT;
+  if (blk_no < NINDIRECT*NINDIRECT){
+      if (file->addrs[NDIRECT + 1] == 0) {
+          file->addrs[NDIRECT + 1] = balloc();
+      }
+      uint32_t *indirect1 = (uint32_t *)bget(file->addrs[NDIRECT + 1]);
+      if (indirect1[blk_no / NINDIRECT] == 0) {
+          indirect1[blk_no / NINDIRECT] = balloc();
+      }
+      uint32_t *indirect2 = (uint32_t *)bget(indirect1[blk_no / NINDIRECT]);
+      if (indirect2[blk_no % NINDIRECT] == 0) {
+          indirect2[blk_no % NINDIRECT] = balloc();
+      }
+      return bget(indirect2[blk_no % NINDIRECT]);
+  }
+  // 文件过大
   panic("file too big");
 }
 
 void iappend(dinode_t *file, const void *buf, uint32_t size) {
   // append buf to file's data, remember to add file->size
   // you can append block by block
-  TODO();
+//  TODO();
+    while (size != 0)
+    {
+        uint32_t blk_no = file->size / BLK_SIZE;
+        blk_t *blk_p = iwalk(file, blk_no);
+        uint32_t offset = file->size % BLK_SIZE;
+        uint32_t size_to_write = MIN(size, BLK_SIZE - offset);
+        memcpy((void *)blk_p + offset, buf, size_to_write);
+        buf += size_to_write;
+        file->size += size_to_write;
+        size -= size_to_write;
+    }
 }
 
 void add_file(char *path) {
@@ -195,6 +230,13 @@ void add_file(char *path) {
   strcpy(dirent.name, basename(path));
   iappend(root, &dirent, sizeof dirent);
   // write the file's data, first read it to buf then call iappend
-  TODO();
-  fclose(fp);
+//  TODO();
+    // 读取文件数据并追加到 inode 对应的文件中
+    size_t read_size;
+    while ((read_size = fread(buf, 1, sizeof(buf), fp)) > 0) {
+        iappend(inode, buf, read_size);
+    }
+
+    fclose(fp);
+
 }

@@ -14,11 +14,12 @@ void init_proc() {
   // Lab2-4, init zombie_sem
   // Lab3-2, set cwd
 //    pcb[0].status = pcb[0].status.RUNNING;
-    // TODO 可能会有bug kproc->kstack = (void *)(KER_MEM - PGSIZE);
     pcb[0].status = RUNNING;
     pcb[0].pgdir = vm_curr();
+    curr->kstack = (void *)(KER_MEM - PGSIZE);
 
     sem_init(&pcb[0].zombie_sem, 0);
+    curr->cwd = iopen("/", TYPE_NONE);
 
 }
 
@@ -47,6 +48,7 @@ proc_t *proc_alloc() {
             }
             for (int j = 0; j < MAX_UFILE; j++)
                 pcb[i].files[j] = NULL;
+            ptr->cwd = NULL;
             break;
         }
     }
@@ -119,6 +121,7 @@ void proc_copycurr(proc_t *proc) {
         if (curr_proc->files[i] != NULL)
             fdup(curr_proc->files[i]);
     }
+    proc->cwd = idup(curr_proc->cwd);
 }
 
 void proc_makezombie(proc_t *proc, int exitcode) {
@@ -148,6 +151,8 @@ void proc_makezombie(proc_t *proc, int exitcode) {
     for (int i = 0; i < MAX_UFILE; i++)
         if (proc->files[i] != NULL)
             fclose(proc->files[i]);
+
+    iclose(proc->cwd);
 
 }
 

@@ -40,4 +40,9 @@
 
 #define NR_SYS        33
 
+/********************************************
+If you choose conssitency, you need yo add:
+********************************************/
+#define SYS_mkfifo    33
+
 #endif

@@ -96,6 +96,9 @@ int chdir(const char *path) {
 int unlink(const char *path) {
   return (int)syscall(SYS_unlink, (size_t)path, 0, 0, 0, 0);
 }
+int mkfifo(const char *path, int mode) {
+    return (int)syscall(SYS_mkfifo, (size_t)path, (size_t)mode, 0, 0, 0);
+}
 
 // optional syscall
 

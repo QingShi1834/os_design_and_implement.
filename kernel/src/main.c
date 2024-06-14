@@ -51,11 +51,11 @@ void init_user_and_go() {
 //    while (1) proc_yield();
 //    proc_run(proc);
 
-    proc_t *proc = proc_alloc();
-    assert(proc);
-    char *argv[] = {"sh", NULL};
-    assert(load_user(proc->pgdir, proc->ctx, "sh", argv) == 0);
-    proc_addready(proc);
+//    proc_t *proc = proc_alloc();
+//    assert(proc);
+//    char *argv[] = {"sh", NULL};
+//    assert(load_user(proc->pgdir, proc->ctx, "sh", argv) == 0);
+//    proc_addready(proc);
 
 //    proc = proc_alloc();
 //    assert(proc);
@@ -64,6 +64,14 @@ void init_user_and_go() {
 //    proc_addready(proc);
 
 //    while (1) proc_yield();
+
+    proc_t *proc = proc_alloc();
+    assert(proc);
+    proc->cwd = iopen("/", TYPE_NONE);
+    char *argv[] = {"sh", NULL};
+    assert(load_user(proc->pgdir, proc->ctx, "sh", argv) == 0);
+    proc_addready(proc);
+
     sti();
     while (1) ;
 

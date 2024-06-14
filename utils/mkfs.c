@@ -174,12 +174,19 @@ blk_t *iwalk(dinode_t *file, uint32_t blk_no) {
   }
   blk_no -= NDIRECT;
   if (blk_no < NINDIRECT) {
-    // indirect address
-      if (file->addrs[NDIRECT] == 0)
+      // 处理间接索引
+      if (file->addrs[NDIRECT] == 0) {
           file->addrs[NDIRECT] = balloc();
-      if (bget(file->addrs[NDIRECT])->u32buf[blk_no] == 0)
-          bget(file->addrs[NDIRECT])->u32buf[blk_no] = balloc();
-      return bget(bget(file->addrs[NDIRECT])->u32buf[blk_no]);
+      }
+      // 获取间接索引块的内存地址
+      blk_t* indirect_block = bget(file->addrs[NDIRECT]);
+      if (indirect_block->u32buf[blk_no] == 0) {
+          // 如果这个逻辑块还没有分配，分配一个新的
+          indirect_block->u32buf[blk_no] = balloc();
+      }
+      // 返回这个逻辑块的内存地址
+      return bget(indirect_block->u32buf[blk_no]);
+
   }
   blk_no -= NINDIRECT;
   if (blk_no < NINDIRECT*NINDIRECT){

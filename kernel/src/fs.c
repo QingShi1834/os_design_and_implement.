@@ -112,10 +112,12 @@ int iremove(const char *path) {
 #define DISK_SIZE (128 * 1024 * 1024)
 #define BLK_NUM   (DISK_SIZE / BLK_SIZE)
 
-#define NDIRECT   12
+#define NDIRECT   11
 #define NINDIRECT (BLK_SIZE / sizeof(uint32_t))
 
 #define IPERBLK   (BLK_SIZE / sizeof(dinode_t)) // inode num per blk
+
+#define MAXFILE (NDIRECT + NINDIRECT + NINDIRECT * NINDIRECT)
 
 // super block
 typedef struct super_block {
@@ -130,7 +132,7 @@ typedef struct dinode {
     uint32_t type;   // file type
     uint32_t device; // if it is a dev, its dev_id
     uint32_t size;   // file size
-    uint32_t addrs[NDIRECT + 1]; // data block addresses, 12 direct and 1 indirect
+    uint32_t addrs[NDIRECT + 1 + 1]; // data block addresses, 12 direct and 1 indirect
 } dinode_t;
 
 struct inode {
@@ -406,9 +408,7 @@ static uint32_t iwalk(inode_t *inode, uint32_t no) {
     // return the blkno of the file's data's no th block, if no, alloc it
     if (no < NDIRECT) {
         // direct address
-//    TODO();
-        if (inode->dinode.addrs[no] == 0)
-        {
+        if (inode->dinode.addrs[no] == 0) {
             inode->dinode.addrs[no] = balloc();
             iupdate(inode);
         }
@@ -416,20 +416,38 @@ static uint32_t iwalk(inode_t *inode, uint32_t no) {
     }
     no -= NDIRECT;
     if (no < NINDIRECT) {
-        // indirect address
-//    TODO();
-        if (inode->dinode.addrs[NDIRECT] == 0)
+        // one-level indirect address
+        if (inode->dinode.addrs[NDIRECT] == 0) {
             inode->dinode.addrs[NDIRECT] = balloc();
-        uint32_t addr = inode->dinode.addrs[NDIRECT];
-        uint32_t id;
-        bread(&id, 4, addr, no * 4);
-        if (id == 0)
-        {
-            id = balloc();
-            bwrite(&id, 4, addr, no * 4);
+            iupdate(inode);
         }
-        iupdate(inode);
-        return id;
+        uint32_t indirect;
+        bread(&indirect, sizeof(uint32_t), inode->dinode.addrs[NDIRECT], no * sizeof(uint32_t));
+        if (indirect == 0) {
+            indirect = balloc();
+            bwrite(&indirect, sizeof(uint32_t), inode->dinode.addrs[NDIRECT], no * sizeof(uint32_t));
+        }
+        return indirect;
+    }
+    no -= NINDIRECT;
+    if (no < NINDIRECT * NINDIRECT) {
+        // two-level indirect address
+        if (inode->dinode.addrs[NDIRECT + 1] == 0) {
+            inode->dinode.addrs[NDIRECT + 1] = balloc();
+            iupdate(inode);
+        }
+        uint32_t indirect1, indirect2;
+        bread(&indirect1, sizeof(uint32_t), inode->dinode.addrs[NDIRECT + 1], (no / NINDIRECT) * sizeof(uint32_t));
+        if (indirect1 == 0) {
+            indirect1 = balloc();
+            bwrite(&indirect1, sizeof(uint32_t), inode->dinode.addrs[NDIRECT + 1], (no / NINDIRECT) * sizeof(uint32_t));
+        }
+        bread(&indirect2, sizeof(uint32_t), indirect1, (no % NINDIRECT) * sizeof(uint32_t));
+        if (indirect2 == 0) {
+            indirect2 = balloc();
+            bwrite(&indirect2, sizeof(uint32_t), indirect1, (no % NINDIRECT) * sizeof(uint32_t));
+        }
+        return indirect2;
     }
     assert(0); // file too big, not need to handle this case
 }
@@ -480,27 +498,46 @@ void itrunc(inode_t *inode) {
     // Lab3-2: free all data block used by inode (direct and indirect)
     // mark all address of inode 0 and mark its size 0
 //  TODO();
-    for (int i = 0; i < NDIRECT; i++)
-    {
-        if (inode->dinode.addrs[i] != 0)
-        {
+    for (int i = 0; i < NDIRECT; i++) {
+        if (inode->dinode.addrs[i]) {
             bfree(inode->dinode.addrs[i]);
             inode->dinode.addrs[i] = 0;
         }
     }
-    uint32_t no;
-    uint32_t addr = inode->dinode.addrs[NDIRECT];
-    if (addr != 0)
-        for (int i = 0; i < 1024; i++)
-        {
-            bread(&no, 4, addr, 4 * i);
-            if (no != 0)
-            {
-                bfree(no);
-                no = 0;
-                bwrite(&no, 4, addr, 4 * i);
+
+    if (inode->dinode.addrs[NDIRECT]) {
+        uint32_t indirect = inode->dinode.addrs[NDIRECT];
+        uint32_t block;
+        for (int i = 0; i < NINDIRECT; i++) {
+            bread(&block, sizeof(uint32_t), indirect, i * sizeof(uint32_t));
+            if (block) {
+                bfree(block);
             }
         }
+        bfree(inode->dinode.addrs[NDIRECT]);
+        inode->dinode.addrs[NDIRECT] = 0;
+    }
+
+    if (inode->dinode.addrs[NDIRECT + 1]) {
+        uint32_t indirect1 = inode->dinode.addrs[NDIRECT + 1];
+        uint32_t indirect2;
+        uint32_t block;
+        for (int i = 0; i < NINDIRECT; i++) {
+            bread(&indirect2, sizeof(uint32_t), indirect1, i * sizeof(uint32_t));
+            if (indirect2) {
+                for (int j = 0; j < NINDIRECT; j++) {
+                    bread(&block, sizeof(uint32_t), indirect2, j * sizeof(uint32_t));
+                    if (block) {
+                        bfree(block);
+                    }
+                }
+                bfree(indirect2);
+            }
+        }
+        bfree(inode->dinode.addrs[NDIRECT + 1]);
+        inode->dinode.addrs[NDIRECT + 1] = 0;
+    }
+
     inode->dinode.size = 0;
     iupdate(inode);
 }
@@ -549,16 +586,20 @@ static int idirempty(inode_t *inode) {
     // the first two dirent of dir must be . and ..
     // you just need to check whether other dirent are all invalid
     assert(inode->dinode.type == TYPE_DIR);
-//  TODO();
-    dirent_t dir;
+
+    dirent_t dirent;
     uint32_t size = inode->dinode.size;
-    for (int i = 2 * sizeof(dirent_t); i < size; i += sizeof(dirent_t))
-    {
-        iread(inode, i, &dir, sizeof(dirent_t));
-        if (dir.inode != 0)
-            return 1;
+
+    // Start checking from the third dirent
+    for (uint32_t i = 2 * sizeof(dirent); i < size; i += sizeof(dirent)) {
+        iread(inode, i, &dirent, sizeof(dirent));
+        if (dirent.inode != 0) {
+            return 0; // Found a valid entry, directory is not empty
+        }
     }
-    return 0;
+
+    return 1; // No valid entries found, directory is empty
+
 }
 
 int iremove(const char *path) {
@@ -572,28 +613,48 @@ int iremove(const char *path) {
 //  TODO();
     char name[MAX_NAME + 1];
     inode_t *parent = iopen_parent(path, name);
-    if (parent == NULL)
-        return -1;
-    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
-        return -1;
+    if (!parent) {
+        return -1; // No parent directory
+    }
+
+    // Check if the file name is "." or ".."
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+        iclose(parent);
+        return -1; // Cannot remove "." or ".."
+    }
+
     uint32_t off;
-    inode_t *file = ilookup(parent, name, &off, TYPE_NONE);
-    if (file == NULL)
-        return -1;
-    if (file->dinode.type == TYPE_DIR)
-    {
-        if (idirempty(file) == 1)
-        {
+    inode_t *inode = ilookup(parent, name, &off, TYPE_NONE);
+    if (inode == NULL) {
+        iclose(parent);
+        return -1; // File not found
+    }
+
+    // If the file is a directory, check if it is empty
+    if (inode->dinode.type == TYPE_DIR) {
+        if (!idirempty(inode)) {
+            iclose(inode);
             iclose(parent);
-            iclose(file);
-            return -1;
+            return -1; // Directory not empty
         }
     }
-    file->del = 1;
-    dirent_t new_dir_item;
-    memset(&new_dir_item, 0, sizeof(new_dir_item));
-    iwrite(parent, off, &new_dir_item, sizeof(new_dir_item));
-    return 0;
+
+    // Mark the inode as deleted
+    inode->del = 1;
+
+    // Create an invalid dirent and write it to the parent directory
+    dirent_t dirent;
+    memset(&dirent, 0, sizeof(dirent));
+    iwrite(parent, off, &dirent, sizeof(dirent));
+
+    // 更新父目录的磁盘 inode
+    iupdate(parent);
+
+    iclose(inode);
+    iclose(parent);
+
+    return 0; // Success
+
 }
 
 #endif

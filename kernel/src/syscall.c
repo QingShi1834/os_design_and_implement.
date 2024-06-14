@@ -60,6 +60,7 @@ int sys_brk(void *addr) {
       pcb->brk = new_brk;
   } else if (new_brk < pcb->brk) {
     // can just do nothing
+      pcb->brk = new_brk;
   }
   return 0;
 }

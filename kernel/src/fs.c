@@ -129,9 +129,9 @@ typedef struct super_block {
 
 // On disk inode
 typedef struct dinode {
-    uint16_t type;   // file type
-    uint16_t ref;
-    uint32_t device; // if it is a dev, its dev_id
+    short type;   // file type
+    short device; // if it is a dev, its dev_id
+    uint32_t ref;
     uint32_t size;   // file size
     uint32_t addrs[NDIRECT + 1 + 1]; // data block addresses, 12 direct and 1 indirect
 } dinode_t;
@@ -173,6 +173,10 @@ static uint32_t dialloc(int type) {
         if (dinode.type == TYPE_NONE)
         {
             dinode.type = type;
+            if (type == TYPE_SYMLINK) {
+                dinode.size = 0;
+                memset(dinode.addrs, 0, sizeof(dinode.addrs));
+            }
             diwrite(&dinode, i);
             return i;
         }
@@ -343,7 +347,7 @@ static inode_t *ilookup(inode_t *parent, const char *name, uint32_t *off, int ty
         idirinit(new_file, parent);
 
 
-    dirent.inode = new_file->no;
+    dirent.inode = no;
     new_file->dinode.ref ++;
 
     strcpy(dirent.name, name);
@@ -462,6 +466,11 @@ int iread(inode_t *inode, uint32_t off, void *buf, uint32_t len) {
     // Lab3-2: read the inode's data [off, MIN(off+len, size)) to buf
     // use iwalk to get the blkno and read blk by blk
 //  TODO();
+    if (itype(inode) == TYPE_SYMLINK) {
+        len = MIN(len, inode->dinode.size - off);
+        memcpy(buf, (char *)inode->dinode.addrs + off, len);
+        return len;
+    }
     len = MIN(len, inode->dinode.size - off);
     uint32_t length = len;
     while (len != 0)
@@ -483,6 +492,16 @@ int iwrite(inode_t *inode, uint32_t off, const void *buf, uint32_t len) {
     // if off+len>size, update it as new size (but can cross size after write)
     // use iwalk to get the blkno and read blk by blk
 //  TODO();
+    if (itype(inode) == TYPE_SYMLINK) {
+        len = MIN(len, sizeof(inode->dinode.addrs) - off);
+        memcpy((char *)inode->dinode.addrs + off, buf, len);
+        inode->dinode.size = off + len;
+        iupdate(inode);
+        return len;
+    }
+    if (off > isize(inode)) {
+        return -1;
+    }
     uint32_t length = len;
     while (len != 0)
     {
@@ -718,6 +737,51 @@ int create_link(const char *source_path, const char *link_path) {
     // 关闭 inode 并返回成功
     iclose(link_parent);
     iclose(source_inode);
+    return 0;
+}
+int create_symlink(const char *target, const char *linkpath) {
+    // 打开符号链接路径的父目录
+    char filename[MAX_NAME + 1];
+    inode_t *parent_dir = iopen_parent(linkpath, filename);
+    if (parent_dir == NULL) {
+        return -1;
+    }
+
+    // 检查符号链接路径是否已经存在
+    if (ilookup(parent_dir, filename, NULL, TYPE_NONE) != NULL) {
+        iclose(parent_dir);
+        return -1;
+    }
+
+    // 分配一个新的 inode 用于符号链接
+    uint32_t new_ino = dialloc(TYPE_SYMLINK);
+    inode_t *new_inode = iget(new_ino);
+    if (new_inode == NULL) {
+        iclose(parent_dir);
+        return -1;
+    }
+
+    // 初始化 inode 为符号链接
+    new_inode->dinode.size = strlen(target);
+    iwrite(new_inode, 0, target, strlen(target));
+    iupdate(new_inode);
+
+    // 为符号链接创建一个新的目录项
+    dirent_t new_dirent;
+    new_dirent.inode = new_ino;
+    strncpy(new_dirent.name, filename, MAX_NAME);
+    new_dirent.name[MAX_NAME] = '\0';
+
+    // 将新目录项写入到父目录
+    uint32_t offset = isize(parent_dir);
+    if (iwrite(parent_dir, offset, &new_dirent, sizeof(new_dirent)) != sizeof(new_dirent)) {
+        iclose(parent_dir);
+        iclose(new_inode);
+        return -1;
+    }
+
+    iclose(parent_dir);
+    iclose(new_inode);
     return 0;
 }
 #endif

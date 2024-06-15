@@ -38,7 +38,7 @@
 #define SYS_link      31
 #define SYS_symlink   32
 
-#define NR_SYS        33
+#define NR_SYS        34
 
 /********************************************
 If you choose conssitency, you need yo add:

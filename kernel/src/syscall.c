@@ -311,7 +311,8 @@ int sys_link(const char *oldpath, const char *newpath) {
 }
 
 int sys_symlink(const char *oldpath, const char *newpath) {
-  TODO();
+//  TODO();
+    return create_symlink(oldpath, newpath);
 }
 
 void *syscall_handle[NR_SYS] = {

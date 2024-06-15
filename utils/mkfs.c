@@ -69,7 +69,8 @@ typedef struct {
 
 // on-disk inode
 typedef struct {
-  uint32_t type;   // file type
+  uint16_t type;   // file type
+  uint16_t ref;
   uint32_t device; // if it is a dev, its dev_id
   uint32_t size;   // file size
   uint32_t addrs[NDIRECT + 1 + 1]; // data block addresses, 12 direct and 1 indirect

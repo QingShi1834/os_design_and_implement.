@@ -129,7 +129,8 @@ typedef struct super_block {
 
 // On disk inode
 typedef struct dinode {
-    uint32_t type;   // file type
+    uint16_t type;   // file type
+    uint16_t ref;
     uint32_t device; // if it is a dev, its dev_id
     uint32_t size;   // file size
     uint32_t addrs[NDIRECT + 1 + 1]; // data block addresses, 12 direct and 1 indirect
@@ -241,7 +242,7 @@ static inode_t *iget(uint32_t no) {
         if (inodes[i].ref == 0)
         {
             inodes[i].no = no;
-            inodes[i].ref = 1;
+            inodes[i].ref++;
             inodes[i].del = 0;
             diread(&(inodes[i].dinode), no);
             return &(inodes[i]);
@@ -296,10 +297,12 @@ static void idirinit(inode_t *inode, inode_t *parent) {
     dirent_t dirent;
     // set .
     dirent.inode = inode->no;
+    inode->dinode.ref++;
     strcpy(dirent.name, ".");
     iwrite(inode, 0, &dirent, sizeof dirent);
     // set ..
     dirent.inode = parent->no;
+    parent->dinode.ref++;
     strcpy(dirent.name, "..");
     iwrite(inode, sizeof dirent, &dirent, sizeof dirent);
 }
@@ -338,10 +341,13 @@ static inode_t *ilookup(inode_t *parent, const char *name, uint32_t *off, int ty
     inode_t *new_file = iget(no);
     if (type == TYPE_DIR)
         idirinit(new_file, parent);
-    dirent_t new_direct_item;
-    new_direct_item.inode = no;
-    strcpy(new_direct_item.name, name);
-    iwrite(parent, empty, (void *)(&new_direct_item), sizeof(dirent_t));
+
+
+    dirent.inode = new_file->no;
+    new_file->dinode.ref ++;
+
+    strcpy(dirent.name, name);
+    iwrite(parent, empty, (void *)(&dirent), sizeof(dirent_t));
     if (off != NULL)
         *off = empty;
     return new_file;
@@ -551,7 +557,20 @@ inode_t *idup(inode_t *inode) {
 void iclose(inode_t *inode) {
     assert(inode);
     if (inode->ref == 1 && inode->del) {
-        itrunc(inode);
+        if (inode->dinode.type == TYPE_DIR)
+        {
+            dirent_t dirent;
+            iread(inode, sizeof dirent, &dirent, sizeof dirent);
+            inode_t *parent = iget(dirent.inode);
+            parent->dinode.ref --;
+            inode->dinode.ref --;
+        }
+        else if (inode->dinode.type == TYPE_FILE){
+            inode->dinode.ref --;
+        }
+        if (inode->dinode.ref == 0 &&itype(inode) != TYPE_SYMLINK) {
+            itrunc(inode);
+        }
         difree(inode->no);
     }
     inode->ref -= 1;
@@ -656,5 +675,49 @@ int iremove(const char *path) {
     return 0; // Success
 
 }
+int create_link(const char *source_path, const char *link_path) {
+    // 打开源文件
+    inode_t *source_inode = iopen(source_path, TYPE_NONE);
+    if (source_inode == NULL) {
+        return -1;
+    }
 
+    // 打开链接路径的父目录
+    char base_name[MAX_NAME + 1];
+    inode_t *link_parent = iopen_parent(link_path, base_name);
+    if (link_parent == NULL) {
+        iclose(source_inode);
+        return -1;
+    }
+
+    // 检查链接路径是否已经存在
+    if (ilookup(link_parent, base_name, NULL, TYPE_NONE) != NULL) {
+        iclose(link_parent);
+        iclose(source_inode);
+        return -1;
+    }
+
+    // 创建新的目录项
+    dirent_t new_entry;
+    new_entry.inode = source_inode->no;
+    strncpy(new_entry.name, base_name, MAX_NAME);
+    new_entry.name[MAX_NAME] = '\0';
+
+    // 将新目录项写入父目录
+    uint32_t offset = isize(link_parent);
+    if (iwrite(link_parent, offset, &new_entry, sizeof(new_entry)) != sizeof(new_entry)) {
+        iclose(link_parent);
+        iclose(source_inode);
+        return -1;
+    }
+
+    // 增加源文件的引用计数
+    source_inode->dinode.ref += 1;
+    iupdate(source_inode);
+
+    // 关闭 inode 并返回成功
+    iclose(link_parent);
+    iclose(source_inode);
+    return 0;
+}
 #endif

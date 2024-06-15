@@ -306,7 +306,8 @@ int sys_pipe(int fd[2]) {
 }
 
 int sys_link(const char *oldpath, const char *newpath) {
-  TODO();
+//  TODO();
+    return create_link(oldpath, newpath);
 }
 
 int sys_symlink(const char *oldpath, const char *newpath) {
